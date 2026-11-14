@@ -1,5 +1,5 @@
 -- Ganti URL ini ke link raw VYX_UI.lua lu (GitHub raw / Pastebin raw / dll)
-local VYX = loadstring(game:HttpGet("https://raw.githubusercontent.com/USERNAME/REPO/main/VYX_UI.lua"))()
+local VYX = loadstring(game:HttpGet("https://raw.githubusercontent.com/H4xxHub/H4xxHub/refs/heads/main/H4xx_UI.lua"))()
 
 ------------------------------------------------ ICON (asset Roblox)
 -- Isi pakai ID gambar lu: "rbxassetid://123456789" atau angka ID-nya aja.
