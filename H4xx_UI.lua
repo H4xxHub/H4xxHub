@@ -647,16 +647,26 @@ function Library:CreateWindow(cfg)
     draggable(header, main)
 
     -- pill (minimized)
-    local pill = new("Frame", { Size = UDim2.fromOffset(176, 46), Position = main.Position, Visible = false, Parent = gui })
+    local pill = new("Frame", { Size = UDim2.fromOffset(204, 46), Position = main.Position, Visible = false, Parent = gui })
     theme(pill, "BackgroundColor3", "Background"); corner(pill, 12); stroke(pill, "Accent", 2)
     local pscale = new("UIScale", { Parent = pill })
-    makeIcon(pill, cfg.Logo, { Position = UDim2.fromOffset(8, 5), Size = UDim2.fromOffset(36, 36), Tint = logoTint,
+    makeIcon(pill, cfg.Logo, { Position = UDim2.fromOffset(36, 5), Size = UDim2.fromOffset(36, 36), Tint = logoTint,
         TextTint = "Accent", TextSize = 26, Font = BLACK, Default = "V" })
-    makeTitle(pill, UDim2.fromOffset(50, 8), 18, cfg.Title or "VYX", cfg.TitleAccent or "UI")
+    makeTitle(pill, UDim2.fromOffset(78, 8), 18, cfg.Title or "VYX", cfg.TitleAccent or "UI")
     local arrow = new("TextButton", { Text = "^", Font = BLACK, TextSize = 24, Size = UDim2.new(0, 44, 1, 0),
         Position = UDim2.new(1, -44, 0, 0), BackgroundTransparency = 1, Parent = pill })
     theme(arrow, "TextColor3", "Text")
-    draggable(pill, pill)
+    -- handle drag (⋮⋮): pill cuma bisa digeser lewat handle ini, klik tempat lain gak bakal ke-drag
+    local grip = new("TextButton", { Text = "", AutoButtonColor = false, Size = UDim2.fromOffset(26, 34), Position = UDim2.fromOffset(5, 6), Parent = pill })
+    theme(grip, "BackgroundColor3", "Element"); corner(grip, 7); stroke(grip, "Stroke", 1)
+    for cx = 0, 1 do
+        for cy = 0, 2 do
+            local dot = new("Frame", { Size = UDim2.fromOffset(4, 4), Position = UDim2.fromOffset(6 + cx * 8, 7 + cy * 8),
+                BorderSizePixel = 0, Parent = grip })
+            corner(dot, 2); theme(dot, "BackgroundColor3", "SubText")
+        end
+    end
+    draggable(grip, pill)
 
     local function vis()
         main.Visible = not Window.Hidden and not Window.Minimized
