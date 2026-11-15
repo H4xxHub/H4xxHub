@@ -1,5 +1,5 @@
 -- Ganti URL ini ke link raw VYX_UI.lua lu (GitHub raw / Pastebin raw / dll)
-local VYX = loadstring(game:HttpGet("https://raw.githubusercontent.com/H4xxHub/H4xxHub/refs/heads/main/H4xx_UI.lua"))()
+local VYX = loadstring(game:HttpGet("https://raw.githubusercontent.com/USERNAME/REPO/main/VYX_UI.lua"))()
 
 ------------------------------------------------ ICON (asset Roblox)
 -- Isi pakai ID gambar lu: "rbxassetid://123456789" atau angka ID-nya aja.
@@ -13,14 +13,32 @@ local ICONS = {
     Settings = "",
 }
 
+------------------------------------------------ KEY SYSTEM
+-- Taruh sebelum CreateWindow. Window baru kebuka kalau key bener.
+local NAME, ACCENT = "H4xx", "Hub"   -- nama GUI lu (pill minimize otomatis nyesuain panjang nama)
+
+local keyOk = VYX:KeySystem({
+    Title = NAME,
+    TitleAccent = ACCENT,
+    Subtitle = "Key System",
+    Logo = ICONS.Logo,
+    Keys = { "H4XX-FREE-KEY", "H4XX-VIP-KEY" },     -- daftar key yang valid
+    -- Validate = function(key) return key == "xxx" end,   -- (opsional) cek sendiri, misal lewat HTTP ke server lu
+    GetKeyLink = "https://link-get-key-lu.com",     -- tombol "Get Key" = copy link ini
+    DiscordLink = "https://discord.gg/xxxxxx",      -- tombol "Discord" (hapus baris ini kalau gak mau)
+    SaveKey = true,                                  -- key kesimpen, next time langsung masuk
+    Folder = "H4xxHub",
+})
+if not keyOk then return end   -- ditutup / gagal -> script berhenti
+
 local Window = VYX:CreateWindow({
-    Title = "VYX",
-    TitleAccent = "UI",
+    Title = NAME,
+    TitleAccent = ACCENT,
     Subtitle = "Premium • Modern • Simple",
     Logo = ICONS.Logo,          -- ganti huruf V
     LogoTint = false,           -- true = logo diwarnai sesuai Accent, false = warna asli gambar
     IconTint = true,            -- true = icon tab diwarnai putih/Text (cocok buat icon monochrome putih)
-    Folder = "VYXUI",
+    Folder = "H4xxHub",
     ToggleKey = Enum.KeyCode.RightShift,
 })
 
