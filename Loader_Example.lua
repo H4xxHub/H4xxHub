@@ -1,11 +1,11 @@
 -- Ganti URL ini ke link raw VYX_UI.lua lu (GitHub raw / Pastebin raw / dll)
-local VYX = loadstring(game:HttpGet("https://raw.githubusercontent.com/H4xxHub/H4xxHub/refs/heads/main/H4xx_UI.lua"))()
+local VYX = loadstring(game:HttpGet("https://raw.githubusercontent.com/H4xxHub/H4xxHub/main/H4xx_UI.lua"))()
 
 ------------------------------------------------ ICON (asset Roblox)
 -- Isi pakai ID gambar lu: "rbxassetid://123456789" atau angka ID-nya aja.
 -- Kalau dikosongin (""), otomatis pakai emoji/huruf V sebagai cadangan.
 local ICONS = {
-    Logo     = "",   -- logo "V" di header & pill (upload logo lu ke Roblox, lalu taruh ID Image-nya)
+    Logo     = "",   -- logo "V" di header & pill
     Main     = "",
     Player   = "",
     Teleport = "",
@@ -15,17 +15,17 @@ local ICONS = {
 
 ------------------------------------------------ KEY SYSTEM
 -- Taruh sebelum CreateWindow. Window baru kebuka kalau key bener.
-local NAME, ACCENT = "H4xx", "Hub"   -- nama GUI lu (pill minimize otomatis nyesuain panjang nama)
+local NAME, ACCENT = "H4xx", "Hub"   -- nama GUI lu
 
 local keyOk = VYX:KeySystem({
     Title = NAME,
     TitleAccent = ACCENT,
     Subtitle = "Key System",
     Logo = ICONS.Logo,
-    Keys = { "H4XX-FREE-KEY", "H4XX-VIP-KEY" },     -- daftar key yang valid
+    Keys = { "H4XX-FREE-KEY", "H4XX-VIP-KEY" },     -- SEMENTARA buat tes. Hapus kalau Validate ke website lu udah dipasang
     -- Validate = function(key) return key == "xxx" end,   -- (opsional) cek sendiri, misal lewat HTTP ke server lu
-    GetKeyLink = "https://link-get-key-lu.com",     -- tombol "Get Key" = copy link ini
-    DiscordLink = "https://discord.gg/xxxxxx",      -- tombol "Discord" (hapus baris ini kalau gak mau)
+    GetKeyLink = "https://h4xx-key.netlify.app/",   -- tombol "Get Key" = copy link ini (web key generator lu)
+    -- DiscordLink = "https://discord.gg/xxxxxx",      -- tombol "Discord" (kalau mau, hapus komentar // di depan)
     SaveKey = true,                                  -- key kesimpen, next time langsung masuk
     Folder = "H4xxHub",
 })
@@ -46,23 +46,31 @@ local Window = VYX:CreateWindow({
 local Main = Window:AddTab("Main", ICONS.Main, "🏠")
 
 local Farm = Main:AddSection("Auto Farm")
-Farm:AddToggle({ Name = "Auto Farm", Flag = "AutoFarm", Default = true, Callback = function(v)
+Farm:AddToggle({ Name = "Auto Farm", Flag = "AutoFarm", Default = false, Callback = function(v)
     getgenv().AutoFarm = v
-    task.spawn(function()
-        while getgenv().AutoFarm do
-            -- taruh logic auto farm lu di sini
-            task.wait(0.5)
-        end
-    end)
+    if v then
+        local myToken = {}
+        getgenv().AutoFarmToken = myToken
+        task.spawn(function()
+            while getgenv().AutoFarmToken == myToken do
+                -- taruh logic auto farm lu di sini
+                task.wait(0.5)
+            end
+        end)
+    end
 end })
-Farm:AddToggle({ Name = "Auto Collect", Flag = "AutoCollect", Callback = function(v)
+Farm:AddToggle({ Name = "Auto Collect", Flag = "AutoCollect", Default = false, Callback = function(v)
     getgenv().AutoCollect = v
-    task.spawn(function()
-        while getgenv().AutoCollect do
-            -- logic auto collect
-            task.wait(0.5)
-        end
-    end)
+    if v then
+        local myToken = {}
+        getgenv().AutoCollectToken = myToken
+        task.spawn(function()
+            while getgenv().AutoCollectToken == myToken do
+                -- logic auto collect
+                task.wait(0.5)
+            end
+        end)
+    end
 end })
 
 local Other = Main:AddSection("Other")
