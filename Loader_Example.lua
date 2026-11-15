@@ -1,11 +1,17 @@
--- Ganti URL ini ke link raw VYX_UI.lua lu (GitHub raw / Pastebin raw / dll)
+-- Ganti URL ini ke link raw VYX_UI.lua lu
 local VYX = loadstring(game:HttpGet("https://raw.githubusercontent.com/H4xxHub/H4xxHub/main/H4xx_UI.lua"))()
 
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+local playerId = LocalPlayer.UserId
+
+local WORKER_URL = "https://h4xx-key.h4xxhub.workers.dev"
+local NETLIFY_URL = "https://h4xx-key.netlify.app/?uid=" .. tostring(playerId)
+
 ------------------------------------------------ ICON (asset Roblox)
--- Isi pakai ID gambar lu: "rbxassetid://123456789" atau angka ID-nya aja.
--- Kalau dikosongin (""), otomatis pakai emoji/huruf V sebagai cadangan.
 local ICONS = {
-    Logo     = "",   -- logo "V" di header & pill
+    Logo     = "",   
     Main     = "",
     Player   = "",
     Teleport = "",
@@ -13,36 +19,69 @@ local ICONS = {
     Settings = "",
 }
 
------------------------------------------------- KEY SYSTEM
--- Taruh sebelum CreateWindow. Window baru kebuka kalau key bener.
-local NAME, ACCENT = "H4xx", "Hub"   -- nama GUI lu
+------------------------------------------------ KEY SYSTEM (AUTO CHECK CLOUDFLARE)
+VYX:Notify("Memeriksa status akses...")
 
-local keyOk = VYX:KeySystem({
-    Title = NAME,
-    TitleAccent = ACCENT,
-    Subtitle = "Key System",
-    Logo = ICONS.Logo,
-    Keys = { "H4XX-FREE-KEY", "H4XX-VIP-KEY" },     -- SEMENTARA buat tes. Hapus kalau Validate ke website lu udah dipasang
-    -- Validate = function(key) return key == "xxx" end,   -- (opsional) cek sendiri, misal lewat HTTP ke server lu
-    GetKeyLink = "https://h4xx-key.netlify.app/",   -- tombol "Get Key" = copy link ini (web key generator lu)
-    -- DiscordLink = "https://discord.gg/xxxxxx",      -- tombol "Discord" (kalau mau, hapus komentar // di depan)
-    SaveKey = true,                                  -- key kesimpen, next time langsung masuk
-    Folder = "H4xxHub",
-})
-if not keyOk then return end   -- ditutup / gagal -> script berhenti
+-- Fungsi buat nanya ke Cloudflare: "Orang ini udah punya key belum?"
+local function checkStatusFromCloudflare()
+    local success, res = pcall(function()
+        local url = WORKER_URL .. "/check-status?userId=" .. tostring(playerId)
+        local response = HttpService:GetAsync(url)
+        return HttpService:JSONDecode(response)
+    end)
+    if success and res then
+        return res.hasKey
+    end
+    return false
+end
 
+local hasKey = checkStatusFromCloudflare()
+
+if not hasKey then
+    -- KALAU BELUM PUNYA KEY, MUNCULIN UI MINTA KEY
+    local keyOk = VYX:KeySystem({
+        Title = "H4xx",
+        TitleAccent = "Hub",
+        Subtitle = "Key System",
+        Logo = ICONS.Logo,
+        Keys = {}, -- Kosongin, validasi pakai Cloudflare
+        
+        GetKeyLink = NETLIFY_URL, 
+        SaveKey = true,
+        Folder = "H4xxHub",
+        
+        -- Validasi kalau user ngetik key manual
+        Validate = function(inputKey)
+            local success, res = pcall(function()
+                local url = WORKER_URL .. "/check-key?key=" .. inputKey .. "&userId=" .. tostring(playerId)
+                local response = HttpService:GetAsync(url)
+                return HttpService:JSONDecode(response)
+            end)
+            if success and res then
+                return res.valid == true
+            end
+            return false
+        end
+    })
+
+    if not keyOk then return end -- Kalau user close/nge-bypass, script berhenti
+else
+    VYX:Notify("✅ Akses diterima! Membuka UI...")
+end
+
+------------------------------------------------ MAIN UI
 local Window = VYX:CreateWindow({
-    Title = NAME,
-    TitleAccent = ACCENT,
+    Title = "H4xx",
+    TitleAccent = "Hub",
     Subtitle = "Premium • Modern • Simple",
-    Logo = ICONS.Logo,          -- ganti huruf V
-    LogoTint = false,           -- true = logo diwarnai sesuai Accent, false = warna asli gambar
-    IconTint = true,            -- true = icon tab diwarnai putih/Text (cocok buat icon monochrome putih)
+    Logo = ICONS.Logo,          
+    LogoTint = false,           
+    IconTint = true,            
     Folder = "H4xxHub",
     ToggleKey = Enum.KeyCode.RightShift,
 })
 
------------------------------------------------- Main
+------------------------------------------------ Main Tab
 local Main = Window:AddTab("Main", ICONS.Main, "🏠")
 
 local Farm = Main:AddSection("Auto Farm")
@@ -59,6 +98,7 @@ Farm:AddToggle({ Name = "Auto Farm", Flag = "AutoFarm", Default = false, Callbac
         end)
     end
 end })
+
 Farm:AddToggle({ Name = "Auto Collect", Flag = "AutoCollect", Default = false, Callback = function(v)
     getgenv().AutoCollect = v
     if v then
@@ -77,22 +117,23 @@ local Other = Main:AddSection("Other")
 Other:AddButton({ Name = "Buy All", ButtonText = "Buy", Callback = function()
     -- logic buy all
 end })
+
 Other:AddSlider({ Name = "Speed", Flag = "Speed", Min = 16, Max = 100, Default = 16, Increment = 1, Callback = function(v)
-    local char = game.Players.LocalPlayer.Character
+    local char = LocalPlayer.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     if hum then hum.WalkSpeed = v end
 end })
 
------------------------------------------------- Player
+------------------------------------------------ Player Tab
 local Player = Window:AddTab("Player", ICONS.Player, "👤")
 local P = Player:AddSection("Player")
 P:AddSlider({ Name = "Jump", Flag = "Jump", Min = 50, Max = 200, Default = 50, Callback = function(v)
-    local char = game.Players.LocalPlayer.Character
+    local char = LocalPlayer.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     if hum then hum.UseJumpPower = true; hum.JumpPower = v end
 end })
 
------------------------------------------------- Teleports
+------------------------------------------------ Teleports Tab
 local Tp = Window:AddTab("Teleports", ICONS.Teleport, "📍")
 local T = Tp:AddSection("Locations")
 T:AddDropdown({ Name = "Location", Flag = "TpLoc", Options = { "Spawn", "Shop", "Boss" }, Default = "Spawn" })
@@ -100,7 +141,7 @@ T:AddButton({ Name = "Teleport", ButtonText = "Go", Callback = function()
     -- teleport ke VYX.Flags.TpLoc
 end })
 
------------------------------------------------- Misc
+------------------------------------------------ Misc Tab
 local Misc = Window:AddTab("Misc", ICONS.Misc, "📦")
 local M = Misc:AddSection("Misc")
 M:AddKeybind({ Name = "Quick Buy Key", Flag = "QuickBuy", Default = Enum.KeyCode.B, Callback = function()
@@ -108,7 +149,7 @@ M:AddKeybind({ Name = "Quick Buy Key", Flag = "QuickBuy", Default = Enum.KeyCode
 end })
 M:AddTextBox({ Name = "Custom Text", Flag = "CustomText", Placeholder = "ketik..." })
 
------------------------------------------------- Settings (theme, shortcut, config) — taruh paling akhir
+------------------------------------------------ Settings
 Window:BuildSettings(ICONS.Settings)
 
 VYX:LoadAutoload()
