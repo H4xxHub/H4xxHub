@@ -127,6 +127,25 @@ local function makeIcon(parent, v, o)
         TextXAlignment = Enum.TextXAlignment.Center, ColorKey = o.TextTint or "Text" })
 end
 
+-- animasi pop in / pop out (UIScale) buat window, pill, key system
+local function setShown(frame, sc, target, show)
+    local tok = (frame:GetAttribute("tok") or 0) + 1
+    frame:SetAttribute("tok", tok)
+    if show then
+        if frame.Visible and sc.Scale == target then return end
+        sc.Scale = target * 0.8
+        frame.Visible = true
+        TS:Create(sc, TweenInfo.new(.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = target }):Play()
+    else
+        if not frame.Visible then return end
+        local t = TS:Create(sc, TweenInfo.new(.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = target * 0.8 })
+        t.Completed:Connect(function()
+            if frame:GetAttribute("tok") == tok then frame.Visible = false; sc.Scale = target end
+        end)
+        t:Play()
+    end
+end
+
 local function isPress(i)
     return i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch
 end
@@ -162,6 +181,12 @@ local function makeRow(parent, h, name)
     local r = new("TextButton", { Text = "", AutoButtonColor = false, BorderSizePixel = 0,
         Size = UDim2.new(1, 0, 0, h), Parent = parent })
     theme(r, "BackgroundColor3", "Element"); corner(r, 8); stroke(r, "Stroke", 1)
+    r.MouseEnter:Connect(function()
+        TS:Create(r, TweenInfo.new(.12), { BackgroundColor3 = Library.Theme.Element:Lerp(Library.Theme.Stroke, .4) }):Play()
+    end)
+    r.MouseLeave:Connect(function()
+        TS:Create(r, TweenInfo.new(.12), { BackgroundColor3 = Library.Theme.Element }):Play()
+    end)
     local l
     if name then
         l = text(r, { Text = name, Position = UDim2.fromOffset(14, 0), Size = UDim2.new(0.55, 0, 1, 0), TextSize = 15 })
@@ -187,10 +212,17 @@ end
 ------------------------------------------------------------------ notify / pins
 function Library:Notify(msg, dur)
     if not self.NotifyHolder then return end
-    local n = new("Frame", { Size = UDim2.new(1, 0, 0, 38), Parent = self.NotifyHolder })
+    local w = new("Frame", { BackgroundTransparency = 1, ClipsDescendants = true, Size = UDim2.new(1, 0, 0, 40), Parent = self.NotifyHolder })
+    local n = new("Frame", { Size = UDim2.new(1, -4, 1, -4), Position = UDim2.new(1, 20, 0, 2), Parent = w })
     theme(n, "BackgroundColor3", "Background"); corner(n, 8); stroke(n, "Accent", 1.5)
     text(n, { Text = tostring(msg), Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -24, 1, 0), TextSize = 14 })
-    Debris:AddItem(n, dur or 2.5)
+    TS:Create(n, TweenInfo.new(.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Position = UDim2.new(0, 2, 0, 2) }):Play()
+    task.delay(dur or 2.5, function()
+        if not n.Parent then return end
+        local t = TS:Create(n, TweenInfo.new(.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Position = UDim2.new(1, 20, 0, 2) })
+        t.Completed:Connect(function() w:Destroy() end)
+        t:Play()
+    end)
 end
 
 function Library:RefreshPins()
@@ -308,6 +340,8 @@ end
 function Library:Unload()
     for _, c in ipairs(self._conns) do pcall(function() c:Disconnect() end) end
     if self.Gui then self.Gui:Destroy() end
+    if self.KeyGui then self.KeyGui:Destroy() end
+    if self._keyResult then self._keyResult(false) end
     if getgenv then getgenv().VYX_UI = nil end
 end
 
@@ -334,7 +368,8 @@ function Section:AddToggle(o)
     local function paint(anim)
         local pos = obj.Value and UDim2.fromOffset(27, 3) or UDim2.fromOffset(3, 3)
         if anim then TS:Create(knob, TweenInfo.new(.15), { Position = pos }):Play() else knob.Position = pos end
-        sw.BackgroundColor3 = obj.Value and Library.Theme.Accent or Color3.fromRGB(62, 60, 76)
+        local col = obj.Value and Library.Theme.Accent or Color3.fromRGB(62, 60, 76)
+        if anim then TS:Create(sw, TweenInfo.new(.15), { BackgroundColor3 = col }):Play() else sw.BackgroundColor3 = col end
     end
     function obj:Set(v, silent)
         obj.Value = v and true or false
@@ -362,6 +397,11 @@ function Section:AddButton(o)
     corner(b, 7); theme(b, "BackgroundColor3", "Accent")
     local function fire() safe(o.Callback) end
     b.MouseButton1Click:Connect(fire)
+    local function tw(c) TS:Create(b, TweenInfo.new(.12), { BackgroundColor3 = c }):Play() end
+    b.MouseEnter:Connect(function() tw(Library.Theme.Accent:Lerp(WHITE, .18)) end)
+    b.MouseLeave:Connect(function() tw(Library.Theme.Accent) end)
+    b.MouseButton1Down:Connect(function() tw(Library.Theme.Accent:Lerp(Color3.new(0, 0, 0), .25)) end)
+    b.MouseButton1Up:Connect(function() tw(Library.Theme.Accent:Lerp(WHITE, .18)) end)
     pinnable(o.Flag or o.Name, r, { Name = o.Name, Type = "button", Fire = fire })
     return { Fire = fire }
 end
@@ -588,7 +628,7 @@ end
 
 ------------------------------------------------------------------ window
 local function makeTitle(parent, pos, size, title, accent)
-    local h = new("Frame", { BackgroundTransparency = 1, Position = pos, Size = UDim2.fromOffset(200, size + 6), Parent = parent })
+    local h = new("Frame", { BackgroundTransparency = 1, Position = pos, Size = UDim2.fromOffset(0, size + 6), AutomaticSize = X, Parent = parent })
     new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 5),
         VerticalAlignment = Enum.VerticalAlignment.Center, Parent = h })
     text(h, { Text = title, Font = BLACK, TextSize = size, AutomaticSize = XY, Size = UDim2.new() })
@@ -596,10 +636,177 @@ local function makeTitle(parent, pos, size, title, accent)
     return h
 end
 
+------------------------------------------------------------------ key system
+function Library:KeySystem(cfg)
+    cfg = cfg or {}
+    local folder = cfg.Folder or "VYXUI"
+    local canFS = typeof(writefile) == "function" and typeof(readfile) == "function" and typeof(isfile) == "function"
+    local keyPath = folder .. "/key.txt"
+    local GOOD, BAD = Color3.fromRGB(80, 220, 130), Color3.fromRGB(255, 90, 90)
+
+    local function validate(k)
+        k = tostring(k or ""):gsub("%s", "")
+        if k == "" then return false end
+        if cfg.Validate then
+            local ok, res = pcall(cfg.Validate, k)
+            return ok and res == true
+        end
+        for _, v in ipairs(cfg.Keys or {}) do
+            if v == k then return true end
+        end
+        return false
+    end
+
+    -- key tersimpan -> langsung lolos
+    if canFS and cfg.SaveKey ~= false then
+        local ok, saved = pcall(function() if isfile(keyPath) then return readfile(keyPath) end end)
+        if ok and saved and validate(saved) then return true end
+    end
+
+    local old = getParent():FindFirstChild("VYXKey"); if old then old:Destroy() end
+    local gui = new("ScreenGui", { Name = "VYXKey", ResetOnSpawn = false, IgnoreGuiInset = true,
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = 1000 })
+    gui.Parent = getParent()
+    Library.KeyGui = gui
+
+    local done = Instance.new("BindableEvent")
+    local finished = false
+    local function result(v)
+        if finished then return end
+        finished = true
+        done:Fire(v)
+    end
+    Library._keyResult = result
+
+    local kmain = new("Frame", { AnchorPoint = Vector2.new(.5, .5), Position = UDim2.fromScale(.5, .5),
+        Size = UDim2.fromOffset(400, 282), Visible = false, Parent = gui })
+    theme(kmain, "BackgroundColor3", "Background"); corner(kmain, 14); stroke(kmain, "Accent", 2)
+    local ksc = new("UIScale", { Parent = kmain })
+
+    local header = new("Frame", { Size = UDim2.new(1, -12, 0, 58), Position = UDim2.fromOffset(6, 6), ClipsDescendants = true, Parent = kmain })
+    theme(header, "BackgroundColor3", "Element"); corner(header, 12); stroke(header, "Stroke", 1)
+    for _, d in ipairs({ { .62, 26, .35 }, { .69, 12, .6 } }) do
+        local f = new("Frame", { AnchorPoint = Vector2.new(.5, .5), Position = UDim2.fromScale(d[1], .5), Size = UDim2.fromOffset(d[2], 140),
+            Rotation = 38, BackgroundTransparency = d[3], BorderSizePixel = 0, Parent = header })
+        theme(f, "BackgroundColor3", "Accent")
+    end
+    local lt = nil
+    if cfg.LogoTint then lt = "Accent" end
+    makeIcon(header, cfg.Logo, { Position = UDim2.fromOffset(10, 6), Size = UDim2.fromOffset(46, 46), Tint = lt,
+        TextTint = "Accent", TextSize = 36, Font = BLACK, Default = "V" })
+    makeTitle(header, UDim2.fromOffset(62, 6), 24, cfg.Title or "VYX", cfg.TitleAccent or "UI")
+    text(header, { Text = cfg.Subtitle or "Key System", Position = UDim2.fromOffset(62, 34), Size = UDim2.fromOffset(250, 16),
+        TextSize = 13, ColorKey = "SubText" })
+    local close = new("TextButton", { Text = "✕", Size = UDim2.fromOffset(38, 38), Position = UDim2.new(1, -48, .5, -19), Font = BLACK,
+        TextSize = 20, AutoButtonColor = false, Parent = header })
+    theme(close, "BackgroundColor3", "Background"); theme(close, "TextColor3", "Text"); corner(close, 9); stroke(close, "Accent", 1.5)
+    close.MouseEnter:Connect(function() TS:Create(close, TweenInfo.new(.12), { BackgroundColor3 = Color3.fromRGB(200, 50, 70) }):Play() end)
+    close.MouseLeave:Connect(function() TS:Create(close, TweenInfo.new(.12), { BackgroundColor3 = Library.Theme.Background }):Play() end)
+    draggable(header, kmain)
+
+    text(kmain, { Text = "Masukin key buat lanjut", Position = UDim2.fromOffset(20, 76), Size = UDim2.new(1, -40, 0, 18),
+        TextSize = 14, ColorKey = "SubText" })
+    local boxFrame = new("Frame", { Position = UDim2.fromOffset(20, 98), Size = UDim2.new(1, -40, 0, 42), Parent = kmain })
+    theme(boxFrame, "BackgroundColor3", "Element"); corner(boxFrame, 9)
+    local bstroke = stroke(boxFrame, "Stroke", 1.5)
+    local box = new("TextBox", { BackgroundTransparency = 1, Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -24, 1, 0),
+        Font = FONT, TextSize = 15, PlaceholderText = "Paste key di sini...", Text = "", ClearTextOnFocus = false,
+        TextXAlignment = Enum.TextXAlignment.Left, Parent = boxFrame })
+    theme(box, "TextColor3", "Text"); box.PlaceholderColor3 = Library.Theme.SubText
+    box.Focused:Connect(function() TS:Create(bstroke, TweenInfo.new(.15), { Color = Library.Theme.Accent }):Play() end)
+
+    local status = text(kmain, { Text = "", Position = UDim2.fromOffset(20, 146), Size = UDim2.new(1, -40, 0, 20), TextSize = 13, ColorKey = "SubText" })
+    local function setStatus(msg, col)
+        status.Text = msg
+        status.TextColor3 = col or Library.Theme.SubText
+    end
+
+    local function kbtn(txt, pos, size, filled)
+        local b = new("TextButton", { Text = txt, Position = pos, Size = size, Font = BOLD, TextSize = 15, AutoButtonColor = false, Parent = kmain })
+        corner(b, 9)
+        if filled then
+            theme(b, "BackgroundColor3", "Accent"); b.TextColor3 = WHITE
+        else
+            theme(b, "BackgroundColor3", "Element"); theme(b, "TextColor3", "Text"); stroke(b, "Accent", 1.5)
+        end
+        local function base() return filled and Library.Theme.Accent or Library.Theme.Element end
+        local function tw(c) TS:Create(b, TweenInfo.new(.12), { BackgroundColor3 = c }):Play() end
+        b.MouseEnter:Connect(function() tw(base():Lerp(WHITE, filled and .18 or .08)) end)
+        b.MouseLeave:Connect(function() tw(base()) end)
+        b.MouseButton1Down:Connect(function() tw(base():Lerp(Color3.new(0, 0, 0), .25)) end)
+        b.MouseButton1Up:Connect(function() tw(base():Lerp(WHITE, filled and .18 or .08)) end)
+        return b
+    end
+    local check = kbtn("Check Key", UDim2.fromOffset(20, 172), UDim2.new(1, -40, 0, 42), true)
+    local hasDc = cfg.DiscordLink ~= nil and cfg.DiscordLink ~= ""
+    local getBtn = kbtn("Get Key", UDim2.fromOffset(20, 224), hasDc and UDim2.new(.5, -24, 0, 38) or UDim2.new(1, -40, 0, 38), false)
+    local dcBtn
+    if hasDc then dcBtn = kbtn("Discord", UDim2.new(.5, 4, 0, 224), UDim2.new(.5, -24, 0, 38), false) end
+
+    local function copyLink(link, okMsg)
+        if not link or link == "" then setStatus("Link belum diset", BAD); return end
+        if typeof(setclipboard) == "function" then
+            setclipboard(link); setStatus(okMsg, GOOD)
+        else
+            setStatus(link, Library.Theme.SubText)
+        end
+    end
+    getBtn.MouseButton1Click:Connect(function() copyLink(cfg.GetKeyLink, "Link key ke-copy ke clipboard!") end)
+    if dcBtn then dcBtn.MouseButton1Click:Connect(function() copyLink(cfg.DiscordLink, "Link Discord ke-copy!") end) end
+
+    local function shake()
+        local base = kmain.Position
+        for _, dx in ipairs({ -10, 10, -7, 7, -3, 0 }) do
+            TS:Create(kmain, TweenInfo.new(.045), { Position = base + UDim2.fromOffset(dx, 0) }):Play()
+            task.wait(.045)
+        end
+    end
+
+    local busy = false
+    local function submit()
+        if busy then return end
+        busy = true
+        TS:Create(bstroke, TweenInfo.new(.15), { Color = Library.Theme.Stroke }):Play()
+        setStatus("Checking...")
+        local key = box.Text
+        if validate(key) then
+            setStatus("Key valid ✓", GOOD)
+            TS:Create(bstroke, TweenInfo.new(.2), { Color = GOOD }):Play()
+            if canFS and cfg.SaveKey ~= false then
+                pcall(function()
+                    if typeof(isfolder) == "function" and typeof(makefolder) == "function" and not isfolder(folder) then makefolder(folder) end
+                    writefile(keyPath, (key:gsub("%s", "")))
+                end)
+            end
+            task.wait(.5)
+            setShown(kmain, ksc, 1, false)
+            task.wait(.25)
+            gui:Destroy()
+            result(true)
+        else
+            setStatus("Key salah, coba lagi", BAD)
+            TS:Create(bstroke, TweenInfo.new(.2), { Color = BAD }):Play()
+            shake()
+            busy = false
+        end
+    end
+    check.MouseButton1Click:Connect(submit)
+    box.FocusLost:Connect(function(enter) if enter then submit() end end)
+    close.MouseButton1Click:Connect(function()
+        setShown(kmain, ksc, 1, false)
+        task.delay(.25, function() gui:Destroy(); result(false) end)
+    end)
+
+    setShown(kmain, ksc, 1, true)
+    local r = done.Event:Wait()
+    done:Destroy()
+    return r
+end
+
 function Library:CreateWindow(cfg)
     cfg = cfg or {}
     local Window = { Tabs = {}, Folder = cfg.Folder or "VYXUI", ToggleKey = cfg.ToggleKey or Enum.KeyCode.RightShift,
-        Minimized = false, Hidden = false, IconTint = (cfg.IconTint ~= false) }
+        Minimized = false, Hidden = false, IconTint = (cfg.IconTint ~= false), UserScale = 1 }
     Library.Window = Window
 
     local parent = getParent()
@@ -617,7 +824,7 @@ function Library:CreateWindow(cfg)
     Library.NotifyHolder = nh
 
     -- main
-    local main = new("Frame", { Size = UDim2.fromOffset(560, 340), Position = UDim2.new(.5, -280, .5, -170), Parent = gui })
+    local main = new("Frame", { AnchorPoint = Vector2.new(.5, .5), Size = UDim2.fromOffset(560, 340), Position = UDim2.fromScale(.5, .5), Visible = false, Parent = gui })
     theme(main, "BackgroundColor3", "Background"); corner(main, 14); stroke(main, "Accent", 2)
     local scale = new("UIScale", { Parent = main })
     Window.Scale = scale
@@ -637,28 +844,42 @@ function Library:CreateWindow(cfg)
     text(header, { Text = cfg.Subtitle or "Premium • Modern • Simple", Position = UDim2.fromOffset(62, 34), Size = UDim2.fromOffset(250, 16),
         TextSize = 13, ColorKey = "SubText" })
 
-    local function hbtn(txt, x)
+    local function hbtn(txt, x, hov)
         local b = new("TextButton", { Text = txt, Size = UDim2.fromOffset(38, 38), Position = UDim2.new(1, x, .5, -19), Font = BLACK,
             TextSize = 20, AutoButtonColor = false, Parent = header })
         theme(b, "BackgroundColor3", "Background"); theme(b, "TextColor3", "Text"); corner(b, 9); stroke(b, "Accent", 1.5)
+        b.MouseEnter:Connect(function() TS:Create(b, TweenInfo.new(.12), { BackgroundColor3 = hov or Library.Theme.Accent }):Play() end)
+        b.MouseLeave:Connect(function() TS:Create(b, TweenInfo.new(.12), { BackgroundColor3 = Library.Theme.Background }):Play() end)
         return b
     end
-    local minBtn, closeBtn = hbtn("–", -92), hbtn("✕", -48)
+    local minBtn, closeBtn = hbtn("–", -92), hbtn("✕", -48, Color3.fromRGB(200, 50, 70))
     draggable(header, main)
 
-    -- pill (minimized)
-    local pill = new("Frame", { Size = UDim2.fromOffset(204, 46), Position = main.Position, Visible = false, Parent = gui })
+    -- pill (minimized): muncul di ATAS TENGAH, lebarnya otomatis nyesuain nama GUI + ada ruang kosong
+    local pill = new("Frame", { AnchorPoint = Vector2.new(.5, 0), Position = UDim2.new(.5, 0, 0, 10), Size = UDim2.fromOffset(0, 48),
+        AutomaticSize = X, Visible = false, Parent = gui })
     theme(pill, "BackgroundColor3", "Background"); corner(pill, 12); stroke(pill, "Accent", 2)
     local pscale = new("UIScale", { Parent = pill })
-    makeIcon(pill, cfg.Logo, { Position = UDim2.fromOffset(36, 5), Size = UDim2.fromOffset(36, 36), Tint = logoTint,
+    new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8),
+        VerticalAlignment = Enum.VerticalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder, Parent = pill })
+    new("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 8), Parent = pill })
+
+    local pl = makeIcon(pill, cfg.Logo, { Size = UDim2.fromOffset(34, 34), Tint = logoTint,
         TextTint = "Accent", TextSize = 26, Font = BLACK, Default = "V" })
-    makeTitle(pill, UDim2.fromOffset(78, 8), 18, cfg.Title or "VYX", cfg.TitleAccent or "UI")
-    local arrow = new("TextButton", { Text = "^", Font = BLACK, TextSize = 24, Size = UDim2.new(0, 44, 1, 0),
-        Position = UDim2.new(1, -44, 0, 0), BackgroundTransparency = 1, Parent = pill })
-    theme(arrow, "TextColor3", "Text")
-    -- handle drag (⋮⋮): pill cuma bisa digeser lewat handle ini, klik tempat lain gak bakal ke-drag
-    local grip = new("TextButton", { Text = "", AutoButtonColor = false, Size = UDim2.fromOffset(26, 34), Position = UDim2.fromOffset(5, 6), Parent = pill })
-    theme(grip, "BackgroundColor3", "Element"); corner(grip, 7); stroke(grip, "Stroke", 1)
+    pl.LayoutOrder = 1
+    local pt = makeTitle(pill, nil, 18, cfg.Title or "VYX", cfg.TitleAccent or "UI")
+    pt.LayoutOrder = 2
+    new("Frame", { Size = UDim2.fromOffset(16, 1), BackgroundTransparency = 1, LayoutOrder = 3, Parent = pill })   -- ruang kosong
+
+    local arrow = new("TextButton", { Text = "^", Font = BLACK, TextSize = 22, Size = UDim2.fromOffset(38, 34),
+        AutoButtonColor = false, LayoutOrder = 4, Parent = pill })
+    theme(arrow, "BackgroundColor3", "Element"); theme(arrow, "TextColor3", "Text"); corner(arrow, 8); stroke(arrow, "Stroke", 1)
+    arrow.MouseEnter:Connect(function() TS:Create(arrow, TweenInfo.new(.12), { BackgroundColor3 = Library.Theme.Accent }):Play() end)
+    arrow.MouseLeave:Connect(function() TS:Create(arrow, TweenInfo.new(.12), { BackgroundColor3 = Library.Theme.Element }):Play() end)
+
+    -- handle drag (⋮⋮) di KANAN: pill cuma bisa digeser lewat handle ini
+    local grip = new("TextButton", { Text = "", AutoButtonColor = false, Size = UDim2.fromOffset(26, 34), LayoutOrder = 5, Parent = pill })
+    theme(grip, "BackgroundColor3", "Element"); corner(grip, 8); stroke(grip, "Stroke", 1)
     for cx = 0, 1 do
         for cy = 0, 2 do
             local dot = new("Frame", { Size = UDim2.fromOffset(4, 4), Position = UDim2.fromOffset(6 + cx * 8, 7 + cy * 8),
@@ -669,11 +890,12 @@ function Library:CreateWindow(cfg)
     draggable(grip, pill)
 
     local function vis()
-        main.Visible = not Window.Hidden and not Window.Minimized
-        pill.Visible = not Window.Hidden and Window.Minimized
+        local us = Window.UserScale
+        setShown(main, scale, us, not Window.Hidden and not Window.Minimized)
+        setShown(pill, pscale, us, not Window.Hidden and Window.Minimized)
     end
-    minBtn.MouseButton1Click:Connect(function() pill.Position = main.Position; Window.Minimized = true; vis() end)
-    arrow.MouseButton1Click:Connect(function() main.Position = pill.Position; Window.Minimized = false; vis() end)
+    minBtn.MouseButton1Click:Connect(function() Window.Minimized = true; vis() end)
+    arrow.MouseButton1Click:Connect(function() Window.Minimized = false; vis() end)
     closeBtn.MouseButton1Click:Connect(function() Library:Unload() end)
 
     connect(UIS.InputBegan, function(i, gp)
@@ -715,15 +937,26 @@ function Library:CreateWindow(cfg)
         new("UIPadding", { PaddingRight = UDim.new(0, 6), Parent = page })
         Tab.Page = page
 
-        local function paint() btn.BackgroundColor3 = Tab.Active and Library.Theme.Accent or Library.Theme.Element end
+        local function paint(instant)
+            local c = Tab.Active and Library.Theme.Accent or Library.Theme.Element
+            if instant == true then btn.BackgroundColor3 = c
+            else TS:Create(btn, TweenInfo.new(.18), { BackgroundColor3 = c }):Play() end
+        end
         addUpdater(paint)
         Tab.Paint = paint
+        btn.MouseEnter:Connect(function()
+            if not Tab.Active then TS:Create(btn, TweenInfo.new(.12), { BackgroundColor3 = Library.Theme.Element:Lerp(Library.Theme.Stroke, .5) }):Play() end
+        end)
+        btn.MouseLeave:Connect(function() paint() end)
         btn.MouseButton1Click:Connect(function()
+            if Tab.Active then return end
             for _, t in ipairs(Window.Tabs) do t.Active = (t == Tab); t.Page.Visible = t.Active; t.Paint() end
+            page.Position = UDim2.fromOffset(0, 16)
+            TS:Create(page, TweenInfo.new(.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.fromOffset(0, 0) }):Play()
         end)
         table.insert(Window.Tabs, Tab)
         if #Window.Tabs == 1 then Tab.Active = true; page.Visible = true end
-        paint()
+        paint(true)
 
         local order = 0
         function Tab:AddSection(title)
@@ -763,7 +996,11 @@ function Library:CreateWindow(cfg)
         ui:AddToggle({ Name = "Show Shortcuts", Flag = "ShowShortcuts", Default = true,
             Callback = function(v) Library.ShowShortcuts = v; Library:RefreshPins() end })
         ui:AddSlider({ Name = "UI Scale", Flag = "UIScale", Min = 60, Max = 130, Default = 100, Increment = 5,
-            Callback = function(v) Window.Scale.Scale = v / 100; pscale.Scale = v / 100 end })
+            Callback = function(v)
+                Window.UserScale = v / 100
+                if main.Visible then Window.Scale.Scale = Window.UserScale end
+                if pill.Visible then pscale.Scale = Window.UserScale end
+            end })
         ui:AddButton({ Name = "Clear Shortcuts", ButtonText = "Clear", Callback = function()
             Library.Pins = {}; Library:RefreshPins()
         end })
@@ -795,6 +1032,7 @@ function Library:CreateWindow(cfg)
         return tab
     end
 
+    vis()   -- animasi buka window
     return Window
 end
 
