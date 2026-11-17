@@ -1,0 +1,331 @@
+```markdown
+# H4xxHub — UI Library & Loader
+
+> Dokumentasi untuk `H4xx_UI.lua` dan `Loader_Example.lua`
+
+---
+
+## 📦 Daftar File
+
+| File | Fungsi |
+|------|--------|
+| `H4xx_UI.lua` | Library UI utama — window, tab, section, toggle, slider, key system |
+| `Loader_Example.lua` | Template loader — contoh cara pakai `H4xx_UI` + key system |
+
+---
+
+## 🎨 H4xx_UI.lua
+
+Library UI modern untuk Roblox script. Dibungkus dari VYX UI dengan API yang lebih simpel.
+
+### Load Library
+
+```lua
+local VYX = loadstring(game:HttpGet("https://raw.githubusercontent.com/H4xxHub/H4xxHub/main/H4xx_UI.lua"))()
+```
+
+Membuat Window
+
+```lua
+local Window = VYX:CreateWindow({
+    Title       = "H4xx",
+    TitleAccent = "Hub",
+    Subtitle    = "Premium • Modern • Simple",
+    Logo        = "",
+    LogoTint    = false,
+    IconTint    = true,
+    Folder      = "H4xxHub",
+    ToggleKey   = Enum.KeyCode.RightShift,
+})
+```
+
+Tab & Section
+
+```lua
+local Main = Window:AddTab("Main", "", "🏠")
+local Farm = Main:AddSection("Auto Farm")
+```
+
+Toggle
+
+```lua
+Farm:AddToggle({
+    Name     = "Auto Farm",
+    Flag     = "AutoFarm",
+    Default  = false,
+    Callback = function(v)
+        getgenv().AutoFarm = v
+    end
+})
+```
+
+Slider
+
+```lua
+Farm:AddSlider({
+    Name      = "Speed",
+    Flag      = "Speed",
+    Min       = 16,
+    Max       = 100,
+    Default   = 16,
+    Increment = 1,
+    Callback  = function(v)
+        local hum = game.Players.LocalPlayer.Character
+            and game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if hum then hum.WalkSpeed = v end
+    end
+})
+```
+
+Dropdown
+
+```lua
+Farm:AddDropdown({
+    Name     = "Location",
+    Flag     = "TpLoc",
+    Options  = { "Spawn", "Shop", "Boss" },
+    Default  = "Spawn",
+    Callback = function(v)
+        print("Dipilih:", v)
+    end
+})
+```
+
+Button
+
+```lua
+Farm:AddButton({
+    Name       = "Buy All",
+    ButtonText = "Buy",
+    Callback   = function()
+        -- logic buy all
+    end
+})
+```
+
+Keybind
+
+```lua
+Farm:AddKeybind({
+    Name     = "Quick Buy",
+    Flag     = "QuickBuy",
+    Default  = Enum.KeyCode.B,
+    Callback = function()
+        VYX:Notify("Quick buy!")
+    end
+})
+```
+
+TextBox
+
+```lua
+Farm:AddTextBox({
+    Name        = "Custom Text",
+    Flag        = "CustomText",
+    Placeholder = "ketik...",
+    Callback    = function(text)
+        print("Input:", text)
+    end
+})
+```
+
+Label
+
+```lua
+local lbl = Farm:AddLabel("Status: idle")
+lbl:Set("Status: running")
+```
+
+Notify
+
+```lua
+VYX:Notify("Script loaded!")
+```
+
+KeySystem
+
+```lua
+local ok = VYX:KeySystem({
+    Title       = "H4xx",
+    TitleAccent = "Hub",
+    Subtitle    = "Key System",
+    Logo        = "",
+    Keys        = {},
+    GetKeyLink  = "https://...",
+    SaveKey     = true,
+    Folder      = "H4xxHub",
+    Validate    = function(key)
+        return true
+    end
+})
+
+if not ok then return end
+```
+
+Settings & Autoload
+
+```lua
+Window:BuildSettings("")
+VYX:LoadAutoload()
+```
+
+Unload UI
+
+```lua
+VYX:Unload()
+```
+
+---
+
+🚀 Loader_Example.lua
+
+Template loader siap pakai. Isinya:
+
+· Load H4xx_UI.lua
+· Cek status key ke Cloudflare Worker
+· Tampilkan KeySystem kalau belum punya key
+· Buka UI utama kalau key valid
+
+Cara Pakai
+
+1. Copy file Loader_Example.lua
+2. Ganti SCRIPT_ID sesuai script:
+   ```lua
+   local SCRIPT_ID = "namascript"
+   ```
+3. Paste ke executor
+
+Konfigurasi Loader
+
+```lua
+local WORKER_URL  = "https://h4xx-key.h4xxhub.workers.dev"
+local SCRIPT_ID   = "namascript"
+local NETLIFY_URL = "https://h4xx-key.netlify.app/?uid=" .. playerId
+                  .. "&script=" .. SCRIPT_ID
+```
+
+Variable Fungsi
+WORKER_URL Endpoint Cloudflare untuk validasi key
+SCRIPT_ID ID unik script (alfanumerik, max 12 char)
+NETLIFY_URL Halaman get key (harus teruskan script param)
+
+Alur Key System di Loader
+
+```
+1. /check-status?userId=...&scriptId=...
+        │
+        ├── hasKey: true  → langsung buka UI
+        │
+        └── hasKey: false → tampilkan KeySystem
+                │
+                ▼
+        User klik "Get Key" → buka Netlify
+                │
+                ▼
+        Netlify panggil /get-key?userId=...&scriptId=...
+                │
+                ▼
+        User copy key → paste di KeySystem
+                │
+                ▼
+        Loader panggil /check-key?key=...&userId=...&scriptId=...
+                │
+                ▼
+        valid: true → simpan key → buka UI
+```
+
+Helper httpGetJSON
+
+Loader menyediakan helper untuk request + decode JSON:
+
+```lua
+local function httpGetJSON(url)
+    local ok, res = pcall(function() return game:HttpGet(url) end)
+    if not ok or not res or res == "" then return nil end
+    local ok2, data = pcall(function() return HttpService:JSONDecode(res) end)
+    if not ok2 then return nil end
+    return data
+end
+```
+
+Dipakai untuk:
+
+· checkStatusFromCloudflare() → /check-status
+· validateKey() → /check-key
+
+---
+
+🔧 Menambah Script Baru
+
+1. Copy Loader_Example.lua → rename (misal RoChess.lua)
+2. Ganti SCRIPT_ID:
+   ```lua
+   local SCRIPT_ID = "RC"
+   ```
+3. Sesuaikan Title, TitleAccent, Subtitle
+4. Tambah tab/section/fitur sesuai kebutuhan
+5. Push ke repo
+6. Update Netlify agar support script=RC
+
+---
+
+⚠️ Aturan SCRIPT_ID
+
+Aturan Contoh
+Hanya alfanumerik RC, AIMBOT, FARM123
+Maksimal 12 karakter ROCCHESS (8) ✅, ROCCHESS1234 (12) ✅
+Case-insensitive rc = RC = Rc
+Tanpa spasi/simbol my-script → MYSCRIPT
+
+Worker akan sanitize otomatis:
+
+```javascript
+scriptId.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().substring(0, 12)
+```
+
+---
+
+🧪 Testing
+
+Manual Test Worker
+
+```bash
+# Generate key
+curl "https://h4xx-key.h4xxhub.workers.dev/get-key?userId=123&scriptId=namascript"
+
+# Cek status
+curl "https://h4xx-key.h4xxhub.workers.dev/check-status?userId=123&scriptId=namascript"
+
+# Validasi key
+curl "https://h4xx-key.h4xxhub.workers.dev/check-key?key=H4XX-NAMACRIPT-XXXX-XXXX&userId=123&scriptId=namascript"
+```
+
+Test di Executor
+
+1. Paste loader
+2. Cek notifikasi "Memeriksa status akses..."
+3. KeySystem muncul (jika belum punya key)
+4. Masukkan key → UI terbuka
+
+---
+
+🐛 Troubleshooting
+
+Masalah Solusi
+Key selalu invalid Cek sanitasi scriptId di worker (/check-key harus sanitize dulu)
+UI nggak muncul Cek WORKER_URL, pastikan worker online
+KeySystem loop Cek response /check-key di browser — harus {valid:true}
+Netlify nggak generate key Pastikan Netlify baca &script= dan teruskan ke /get-key
+JSONDecode error Worker return bukan JSON — cek status code di browser
+
+---
+
+📄 Lisensi
+
+Private use only. Redistribusi tanpa izin dilarang.
+
+---
+
+⚠️ Disclaimer: Gunakan dengan bijak. Segala risiko ditanggung pengguna.
+
+```
