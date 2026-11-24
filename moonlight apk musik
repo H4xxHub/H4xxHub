@@ -1,0 +1,66 @@
+package com.moon.light;
+
+import android.app.PendingIntent;
+import android.appwidget.*;
+import android.content.*;
+import android.widget.RemoteViews;
+
+public class MusicWidget extends AppWidgetProvider {
+  static PendingIntent pi(Context c, String a) {
+    return PendingIntent.getBroadcast(c, a.hashCode(), new Intent(a).setPackage(c.getPackageName()),
+      PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+  }
+
+  static void upd(Context c, String title) {
+    RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_music);
+    v.setTextViewText(R.id.w_title, title);
+    v.setOnClickPendingIntent(R.id.w_prev, pi(c, "mc.PREV"));
+    v.setOnClickPendingIntent(R.id.w_play, pi(c, "mc.PP"));
+    v.setOnClickPendingIntent(R.id.w_next, pi(c, "mc.NEXT"));
+    v.setOnClickPendingIntent(R.id.w_title, PendingIntent.getActivity(c, 0,
+      new Intent(c, MainActivity.class), PendingIntent.FLAG_IMMUTABLE));
+    AppWidgetManager.getInstance(c).updateAppWidget(new ComponentName(c, MusicWidget.class), v);
+  }
+
+  @Override public void onUpdate(Context c, AppWidgetManager m, int[] ids) { upd(c, "Music"); }
+}
+
+package com.moon.light;
+
+import android.app.*;
+import android.content.*;
+import android.os.*;
+
+public class MusicService extends Service {
+  @Override public int onStartCommand(Intent i, int f, int s) {
+    String t = i != null && i.getStringExtra("t") != null ? i.getStringExtra("t") : "Music";
+    String a = i != null && i.getStringExtra("a") != null ? i.getStringExtra("a") : "";
+    boolean pl = i == null || i.getBooleanExtra("p", true);
+    NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+    Notification.Builder b;
+    if (Build.VERSION.SDK_INT >= 26) {
+      nm.createNotificationChannel(new NotificationChannel("m", "Music", NotificationManager.IMPORTANCE_LOW));
+      b = new Notification.Builder(this, "m");
+    } else b = new Notification.Builder(this);
+    b.setSmallIcon(android.R.drawable.ic_media_play).setContentTitle(t).setContentText(a)
+      .setOngoing(pl).setVisibility(Notification.VISIBILITY_PUBLIC)
+      .setContentIntent(PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE))
+      .addAction(android.R.drawable.ic_media_previous, "Prev", pi("mc.PREV"))
+      .addAction(pl ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play, "Play", pi("mc.PP"))
+      .addAction(android.R.drawable.ic_media_next, "Next", pi("mc.NEXT"))
+      .setStyle(new Notification.MediaStyle().setShowActionsInCompactView(0, 1, 2));
+    startForeground(1, b.build());
+    return START_STICKY;
+  }
+
+  PendingIntent pi(String a) {
+    return PendingIntent.getBroadcast(this, a.hashCode(), new Intent(a).setPackage(getPackageName()),
+      PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+  }
+
+  @Override public IBinder onBind(Intent i) { return null; }
+}
+
+yg file MainActivity.java nya ganti ke file txt gua kirim
+trus bisa ga ubah yg file txtnya itu
+bisa ga kaya yg yt short nya gausah trus ini kenapa ya setiap buka apk nya itu kaya pertama kali buka apknya gitu trus upgrade semuanya kaya yg island trus widget dll trus yg animasi nav bar kok gaada yg switch gitu trus buat semua nya 99999x better trus tiru yg ky video ini
