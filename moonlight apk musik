@@ -1,4 +1,4 @@
-package com.moon.light;
+8package com.moon.light;
 
 import android.app.PendingIntent;
 import android.appwidget.*;
@@ -64,3 +64,4 @@ public class MusicService extends Service {
 yg file MainActivity.java nya ganti ke file txt gua kirim
 trus bisa ga ubah yg file txtnya itu
 bisa ga kaya yg yt short nya gausah trus ini kenapa ya setiap buka apk nya itu kaya pertama kali buka apknya gitu trus upgrade semuanya kaya yg island trus widget dll trus yg animasi nav bar kok gaada yg switch gitu trus buat semua nya 99999x better trus tiru yg ky video ini
+trus yg nama musik nya panjang pendekin trus tombol yg buat poster dibawah lirik akhir yg dipilih aja
